@@ -357,8 +357,13 @@ export default function PremiumAdminDashboard() {
   const fetchCoupons = async () => {
     setIsLoading(true);
     try {
+      // Initialize dummy data if no coupons exist
+      const existingData = storageUtils.getCoupons();
+      if (existingData.length === 0) {
+        storageUtils.initializeDummyData();
+      }
+
       const data = storageUtils.getCoupons();
-      // Add numeric ID for rendering if needed, though we can use code as unique key
       const formattedCoupons = data.map((c: any, index: number) => ({
         ...c,
         id: index + 1,
@@ -366,20 +371,48 @@ export default function PremiumAdminDashboard() {
       setCoupons(formattedCoupons);
     } catch (error) {
       console.error("Error fetching coupons:", error);
-      alert("Error fetching coupons from local storage");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Initial data fetch
   useEffect(() => {
-    // Clear and initialize dummy data for testing
-    const existingCoupons = storageUtils.getCoupons();
-    if (existingCoupons.length === 0) {
-      storageUtils.initializeDummyData();
-    }
     fetchCoupons();
   }, []);
+
+  // Live update: Listen for storage changes (cross-tab sync)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "coupons") {
+        fetchCoupons();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  // Live update: Poll for changes every 5 seconds (same-tab updates)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentData = storageUtils.getCoupons();
+      if (currentData.length !== coupons.length) {
+        fetchCoupons();
+      } else {
+        // Check if any coupon status changed
+        const hasChanges = currentData.some((c: any) => {
+          const existing = coupons.find((ec) => ec.code === c.code);
+          return existing && existing.status !== c.status;
+        });
+        if (hasChanges) {
+          fetchCoupons();
+        }
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [coupons]);
 
   const generateCoupons = async () => {
     setIsGenerating(true);

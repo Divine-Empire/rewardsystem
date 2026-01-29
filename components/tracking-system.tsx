@@ -25,7 +25,6 @@ import {
   Users,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import Barcode from "react-barcode";
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
 
@@ -42,8 +41,6 @@ interface Coupon {
   claimedBy?: string;
   claimedAt?: string;
   rowIndex: number;
-  itemName?: string;
-  itemCode?: string;
 }
 
 interface Consumer {
@@ -59,8 +56,6 @@ interface BarcodeDisplayProps {
   code: string;
   formLink: string;
   reward: number;
-  itemName?: string;
-  itemCode?: string;
 }
 
 // Format date to DD-MM-YYYY
@@ -84,13 +79,7 @@ const formatDate = (dateStr: string): string => {
   }
 };
 
-const BarcodeDisplay = ({
-  code,
-  formLink,
-  reward,
-  itemName,
-  itemCode,
-}: BarcodeDisplayProps) => {
+const BarcodeDisplay = ({ code, formLink, reward }: BarcodeDisplayProps) => {
   return (
     <div className="relative overflow-hidden transition-all duration-300 bg-white border border-gray-100 shadow-lg group rounded-2xl hover:shadow-2xl hover:-translate-y-1">
       {/* Decorative gradient accent */}
@@ -106,55 +95,31 @@ const BarcodeDisplay = ({
         </p>
       </div>
 
-      {/* Item Name & Item Code Section */}
-      {(itemName || itemCode) && (
-        <div className="px-4 py-2 bg-gradient-to-r from-sky-50 to-sky-100 border-b border-sky-200">
-          {itemName && (
-            <div className="text-center">
-              <p className="text-[10px] text-sky-500 uppercase tracking-wider font-medium">
-                Item Name
-              </p>
-              <p
-                className="text-sm font-bold text-slate-800 truncate"
-                title={itemName}
-              >
-                {itemName}
-              </p>
-            </div>
-          )}
-          {itemCode && (
-            <div className="text-center mt-1">
-              <p className="text-[10px] text-sky-500 uppercase tracking-wider font-medium">
-                Item Code
-              </p>
-              <p className="font-mono text-sm font-semibold text-sky-700">
-                {itemCode}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Main content */}
       <div className="flex flex-col items-center p-5">
-        {/* Barcode container */}
-        <div className="relative p-3 mb-4 bg-white rounded-lg border border-gray-200 shadow-md">
-          <Barcode
-            value={itemCode || code}
-            width={1.5}
-            height={60}
-            fontSize={12}
-            margin={5}
-            displayValue={true}
-            background="#ffffff"
-            lineColor="#1f2937"
-          />
+        {/* QR Code container with decorative border */}
+        <div className="relative p-1 mb-4 shadow-lg rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 shadow-sky-500/20">
+          <div className="p-3 bg-white rounded-lg">
+            <QRCodeSVG
+              value={formLink}
+              size={140}
+              level="H"
+              includeMargin={false}
+              fgColor="#1f2937"
+              bgColor="#ffffff"
+            />
+          </div>
+          {/* Corner decorations */}
+          <div className="absolute w-3 h-3 border-t-2 border-l-2 border-sky-300 rounded-tl -top-1 -left-1" />
+          <div className="absolute w-3 h-3 border-t-2 border-r-2 border-sky-300 rounded-tr -top-1 -right-1" />
+          <div className="absolute w-3 h-3 border-b-2 border-l-2 border-sky-300 rounded-bl -bottom-1 -left-1" />
+          <div className="absolute w-3 h-3 border-b-2 border-r-2 border-sky-300 rounded-br -bottom-1 -right-1" />
         </div>
 
         {/* Scan instruction */}
         <div className="mb-3 text-center">
           <h2 className="mb-1 text-sm font-bold text-gray-800">
-            📱 Scan Barcode to Get Reward
+            📱 Scan QR Code to Get Reward
           </h2>
           <p className="inline-block px-3 py-1 text-xs font-medium text-sky-600 rounded-full bg-sky-50">
             Botivate — Turning Scans into Smiles
@@ -217,6 +182,12 @@ export default function PremiumTrackingSystem() {
   const fetchCoupons = async () => {
     setIsLoading(true);
     try {
+      // Initialize dummy data if no coupons exist (for testing/demo)
+      const existingData = storageUtils.getCoupons();
+      if (existingData.length === 0) {
+        storageUtils.initializeDummyData();
+      }
+
       const data = storageUtils.getCoupons();
       const couponData = data
         .map((c: any, index: number) => ({
@@ -230,15 +201,12 @@ export default function PremiumTrackingSystem() {
           phone: c.userDetails?.phone || null,
           upiId: c.userDetails?.upiId || "",
           rowIndex: index + 2,
-          itemName: c.itemName || null,
-          itemCode: c.itemCode || null,
         }))
         .filter((coupon: Coupon) => coupon.code && coupon.status !== "deleted");
 
       setCoupons(couponData);
     } catch (error) {
       console.error("Error fetching coupons:", error);
-      alert("Error fetching coupons from local storage");
     } finally {
       setIsLoading(false);
     }
@@ -249,13 +217,44 @@ export default function PremiumTrackingSystem() {
     setConsumers([]);
   };
 
+  // Initial data fetch
   useEffect(() => {
-    const fetchData = async () => {
-      await fetchCoupons();
-      await fetchConsumers();
-    };
-    fetchData();
+    fetchCoupons();
+    fetchConsumers();
   }, []);
+
+  // Live update: Listen for storage changes (cross-tab sync)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "coupons") {
+        fetchCoupons();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  // Live update: Poll for changes every 5 seconds (same-tab updates)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentData = storageUtils.getCoupons();
+      if (currentData.length !== coupons.length) {
+        fetchCoupons();
+      } else {
+        // Check if any coupon status changed
+        const hasChanges = currentData.some((c: any, i: number) => {
+          const existing = coupons.find((ec) => ec.code === c.code);
+          return existing && existing.status !== c.status;
+        });
+        if (hasChanges) {
+          fetchCoupons();
+        }
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [coupons]);
 
   const refreshData = async (): Promise<void> => {
     setIsLoading(true);
@@ -822,8 +821,6 @@ export default function PremiumTrackingSystem() {
                         code={coupon.code}
                         formLink={getFormLink(coupon.code, coupon.reward)}
                         reward={coupon.reward}
-                        itemName={coupon.itemName}
-                        itemCode={coupon.itemCode}
                       />
                     ))}
                 </div>
@@ -848,10 +845,8 @@ export default function PremiumTrackingSystem() {
               <div className="flex-col hidden h-full overflow-hidden bg-white border border-gray-100 shadow-sm lg:flex rounded-xl">
                 {/* Table Header - Fixed */}
                 <div className="flex-shrink-0 px-5 py-3 bg-gradient-to-r from-sky-600 to-sky-700">
-                  <div className="grid grid-cols-9 gap-4 text-xs font-medium tracking-wider text-white uppercase">
+                  <div className="grid grid-cols-7 gap-4 text-xs font-medium tracking-wider text-white uppercase">
                     <div>Code</div>
-                    <div>Item Name</div>
-                    <div>Item Code</div>
                     <div>Status</div>
                     <div>Reward</div>
                     <div>Claimed By</div>
@@ -882,24 +877,12 @@ export default function PremiumTrackingSystem() {
                       return (
                         <div
                           key={coupon.code}
-                          className={`grid grid-cols-9 gap-4 px-5 py-3.5 items-center hover:bg-sky-50/10 transition-colors ${
+                          className={`grid grid-cols-7 gap-4 px-5 py-3.5 items-center hover:bg-sky-50/10 transition-colors ${
                             index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
                           }`}
                         >
                           <div className="font-mono text-sm font-semibold tracking-wide text-slate-800">
                             {coupon.code}
-                          </div>
-                          <div
-                            className="text-sm text-slate-700 font-medium truncate"
-                            title={coupon.itemName || ""}
-                          >
-                            {coupon.itemName || "—"}
-                          </div>
-                          <div
-                            className="text-sm text-slate-500 font-mono truncate"
-                            title={coupon.itemCode || ""}
-                          >
-                            {coupon.itemCode || "—"}
                           </div>
                           <div>
                             <span
