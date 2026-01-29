@@ -40,6 +40,8 @@ interface Coupon {
   upiId?: string;
   claimedBy?: string;
   claimedAt?: string;
+  itemName?: string;
+  itemCode?: string;
   rowIndex: number;
 }
 
@@ -56,6 +58,8 @@ interface BarcodeDisplayProps {
   code: string;
   formLink: string;
   reward: number;
+  itemName?: string;
+  itemCode?: string;
 }
 
 // Format date to DD-MM-YYYY
@@ -79,7 +83,13 @@ const formatDate = (dateStr: string): string => {
   }
 };
 
-const BarcodeDisplay = ({ code, formLink, reward }: BarcodeDisplayProps) => {
+const BarcodeDisplay = ({
+  code,
+  formLink,
+  reward,
+  itemName,
+  itemCode,
+}: BarcodeDisplayProps) => {
   return (
     <div className="relative overflow-hidden transition-all duration-300 bg-white border border-gray-100 shadow-lg group rounded-2xl hover:shadow-2xl hover:-translate-y-1">
       {/* Decorative gradient accent */}
@@ -128,6 +138,22 @@ const BarcodeDisplay = ({ code, formLink, reward }: BarcodeDisplayProps) => {
 
         {/* Divider */}
         <div className="w-full h-px my-2 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+
+        {/* Item Details */}
+        {(itemName || itemCode) && (
+          <div className="w-full mb-3 text-center">
+            {itemName && (
+              <p className="text-sm font-bold text-slate-800 mb-0.5 max-w-full px-2 truncate">
+                {itemName}
+              </p>
+            )}
+            {itemCode && (
+              <p className="text-xs text-sky-600 font-mono font-medium">
+                {itemCode}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Coupon code */}
         <div className="w-full mb-3 text-center">
@@ -200,6 +226,8 @@ export default function PremiumTrackingSystem() {
           claimedAt: c.claimedAt || null,
           phone: c.userDetails?.phone || null,
           upiId: c.userDetails?.upiId || "",
+          itemName: c.itemName || "",
+          itemCode: c.itemCode || "",
           rowIndex: index + 2,
         }))
         .filter((coupon: Coupon) => coupon.code && coupon.status !== "deleted");
@@ -416,23 +444,46 @@ export default function PremiumTrackingSystem() {
           align: "center",
         });
 
-        // Tagline text
-        doc.setFontSize(6);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(2, 132, 199); // Sky-600
-        doc.text("Turning Scans into Smiles", colCenterX, y + 50, {
-          align: "center",
-        });
+        // Item Details Logic
+        let currentY = y + 50;
+        if (coupon.itemName || coupon.itemCode) {
+          if (coupon.itemName) {
+            doc.setFontSize(7); // Slightly larger
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(17, 24, 39); // Gray 900
+
+            // Truncate if too long (simple char limit for demo)
+            let name = coupon.itemName;
+            if (name.length > 25) name = name.substring(0, 25) + "...";
+
+            doc.text(name, colCenterX, y + 50, { align: "center" });
+          }
+          if (coupon.itemCode) {
+            doc.setFontSize(5);
+            doc.setFont("courier", "bold");
+            doc.setTextColor(2, 132, 199); // Sky 600
+            doc.text(coupon.itemCode, colCenterX, y + 53, { align: "center" });
+          }
+        } else {
+          // Fallback tagline if no item info
+          doc.setFontSize(6);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(2, 132, 199); // Sky-600
+          doc.text("Turning Scans into Smiles", colCenterX, y + 50, {
+            align: "center",
+          });
+        }
 
         // Divider line
         doc.setDrawColor(229, 231, 235);
         doc.setLineWidth(0.2);
-        doc.line(cardX + 5, y + 53, cardX + cardWidth - 5, y + 53);
+        doc.line(cardX + 5, y + 55, cardX + cardWidth - 5, y + 55);
 
         // Coupon Code label
+        doc.setFont("helvetica", "normal");
         doc.setFontSize(4);
         doc.setTextColor(156, 163, 175); // Gray
-        doc.text("COUPON CODE", colCenterX, y + 57, { align: "center" });
+        doc.text("COUPON CODE", colCenterX, y + 59, { align: "center" });
 
         // Coupon Code value with dark background
         const codeText = coupon.code;
@@ -440,7 +491,7 @@ export default function PremiumTrackingSystem() {
         doc.setFillColor(17, 24, 39); // Dark background
         doc.roundedRect(
           colCenterX - codeWidth / 2,
-          y + 58.5,
+          y + 60.5,
           codeWidth,
           5,
           1,
@@ -450,12 +501,12 @@ export default function PremiumTrackingSystem() {
         doc.setFontSize(6);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(255, 255, 255); // White text
-        doc.text(codeText, colCenterX, y + 62, { align: "center" });
+        doc.text(codeText, colCenterX, y + 64, { align: "center" });
 
         // Redeem URL label
         doc.setFontSize(4);
         doc.setTextColor(156, 163, 175); // Gray
-        doc.text("REDEEM URL", colCenterX, y + 68, { align: "center" });
+        doc.text("REDEEM URL", colCenterX, y + 70, { align: "center" });
 
         // Redeem URL value (truncated if too long)
         doc.setFontSize(4);
@@ -469,13 +520,13 @@ export default function PremiumTrackingSystem() {
           displayUrl = displayUrl.slice(0, -1);
         }
         if (displayUrl !== formLink) displayUrl += "...";
-        doc.text(displayUrl, colCenterX, y + 72, { align: "center" });
+        doc.text(displayUrl, colCenterX, y + 74, { align: "center" });
 
         // Reward badge with gradient effect (simulated with red background)
         const badgeWidth = 28;
         const badgeHeight = 7;
         const badgeX = colCenterX - badgeWidth / 2;
-        const badgeY = y + 76;
+        const badgeY = y + 78;
 
         // Draw reward badge
         doc.setFillColor(2, 132, 199); // Sky-600
@@ -821,6 +872,8 @@ export default function PremiumTrackingSystem() {
                         code={coupon.code}
                         formLink={getFormLink(coupon.code, coupon.reward)}
                         reward={coupon.reward}
+                        itemName={coupon.itemName}
+                        itemCode={coupon.itemCode}
                       />
                     ))}
                 </div>
@@ -845,8 +898,10 @@ export default function PremiumTrackingSystem() {
               <div className="flex-col hidden h-full overflow-hidden bg-white border border-gray-100 shadow-sm lg:flex rounded-xl">
                 {/* Table Header - Fixed */}
                 <div className="flex-shrink-0 px-5 py-3 bg-gradient-to-r from-sky-600 to-sky-700">
-                  <div className="grid grid-cols-7 gap-4 text-xs font-medium tracking-wider text-white uppercase">
+                  <div className="grid grid-cols-9 gap-4 text-xs font-medium tracking-wider text-white uppercase">
                     <div>Code</div>
+                    <div>Item Name</div>
+                    <div>Item Code</div>
                     <div>Status</div>
                     <div>Reward</div>
                     <div>Claimed By</div>
@@ -877,12 +932,21 @@ export default function PremiumTrackingSystem() {
                       return (
                         <div
                           key={coupon.code}
-                          className={`grid grid-cols-7 gap-4 px-5 py-3.5 items-center hover:bg-sky-50/10 transition-colors ${
+                          className={`grid grid-cols-9 gap-4 px-5 py-3.5 items-center hover:bg-sky-50/10 transition-colors ${
                             index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
                           }`}
                         >
                           <div className="font-mono text-sm font-semibold tracking-wide text-slate-800">
                             {coupon.code}
+                          </div>
+                          <div
+                            className="text-sm text-slate-700 font-medium truncate"
+                            title={coupon.itemName}
+                          >
+                            {coupon.itemName || "—"}
+                          </div>
+                          <div className="text-sm text-slate-500 font-mono">
+                            {coupon.itemCode || "—"}
                           </div>
                           <div>
                             <span
