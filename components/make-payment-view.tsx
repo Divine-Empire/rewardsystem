@@ -37,6 +37,8 @@ interface PaymentItem {
   claimedAt: string;
   paymentStatus: string;
   rowIndex: number;
+  itemName: string;
+  itemCode: string;
   rawRow: any[]; // Store original row data to preserve all columns
 }
 
@@ -88,6 +90,8 @@ export default function MakePaymentView() {
         phone: c.userDetails?.phone || c.phone || "",
         upiId: c.userDetails?.upiId || c.upiId || "",
         paymentStatus: c.paymentStatus || "",
+        itemName: c.itemName || "",
+        itemCode: c.itemCode || "",
         rowIndex: index + 2,
         rawRow: [],
       }));
@@ -384,7 +388,7 @@ export default function MakePaymentView() {
               <div className="hidden lg:flex flex-col h-full bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                 {/* Table Header */}
                 <div className="bg-gradient-to-r from-sky-600 to-sky-700 px-5 py-3 flex-shrink-0">
-                  <div className="grid grid-cols-8 gap-4 text-xs font-medium text-white uppercase tracking-wider">
+                  <div className="grid grid-cols-10 gap-4 text-xs font-medium text-white uppercase tracking-wider">
                     <div className="flex items-center gap-2">
                       <Checkbox
                         checked={
@@ -397,6 +401,8 @@ export default function MakePaymentView() {
                       Action
                     </div>
                     <div>Created Date</div>
+                    <div>Item Name</div>
+                    <div>Item Code</div>
                     <div>Code</div>
                     <div>Reward</div>
                     <div>Claimed By</div>
@@ -421,7 +427,7 @@ export default function MakePaymentView() {
                     filteredPendingItems.map((item, index) => (
                       <div
                         key={item.code}
-                        className={`grid grid-cols-8 gap-4 px-5 py-3.5 items-center hover:bg-sky-50/30 transition-colors ${
+                        className={`grid grid-cols-10 gap-4 px-5 py-3.5 items-center hover:bg-sky-50/30 transition-colors ${
                           index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
                         }`}
                       >
@@ -436,6 +442,15 @@ export default function MakePaymentView() {
                         </div>
                         <div className="text-sm text-slate-500">
                           {formatDate(item.createdDate)}
+                        </div>
+                        <div
+                          className="text-sm text-slate-700 font-medium truncate"
+                          title={item.itemName}
+                        >
+                          {item.itemName || "—"}
+                        </div>
+                        <div className="text-sm text-slate-500 font-mono">
+                          {item.itemCode || "—"}
                         </div>
                         <div className="font-mono text-sm font-semibold text-slate-800 tracking-wide">
                           {item.code}
@@ -573,8 +588,10 @@ export default function MakePaymentView() {
               <div className="hidden lg:flex flex-col h-full bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                 {/* Table Header */}
                 <div className="bg-gradient-to-r from-green-600 to-green-700 px-5 py-3 flex-shrink-0">
-                  <div className="grid grid-cols-8 gap-4 text-xs font-medium text-white uppercase tracking-wider">
+                  <div className="grid grid-cols-10 gap-4 text-xs font-medium text-white uppercase tracking-wider">
                     <div>Created Date</div>
+                    <div>Item Name</div>
+                    <div>Item Code</div>
                     <div>Code</div>
                     <div>Reward</div>
                     <div>Claimed By</div>
@@ -600,12 +617,21 @@ export default function MakePaymentView() {
                     filteredHistoryItems.map((item, index) => (
                       <div
                         key={item.code}
-                        className={`grid grid-cols-8 gap-4 px-5 py-3.5 items-center hover:bg-green-50/30 transition-colors ${
+                        className={`grid grid-cols-10 gap-4 px-5 py-3.5 items-center hover:bg-green-50/30 transition-colors ${
                           index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
                         }`}
                       >
                         <div className="text-sm text-slate-500">
                           {formatDate(item.createdDate)}
+                        </div>
+                        <div
+                          className="text-sm text-slate-700 font-medium truncate"
+                          title={item.itemName}
+                        >
+                          {item.itemName || "—"}
+                        </div>
+                        <div className="text-sm text-slate-500 font-mono">
+                          {item.itemCode || "—"}
                         </div>
                         <div className="font-mono text-sm font-semibold text-slate-800 tracking-wide">
                           {item.code}
